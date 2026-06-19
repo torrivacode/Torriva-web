@@ -35,6 +35,29 @@ export default function AdminPortfolio() {
   const presetTags = ['Alta Moda', 'Diseño de Gala', 'Diseño Exclusivo', 'Edición Limitada']
   const [tagOption, setTagOption] = useState('')
 
+  // Opciones de categorías predefinidas y dinámicas
+  const defaultCategories = ['XV Años', 'Novia', 'Graduación', 'Personalizados']
+  const [categoryOption, setCategoryOption] = useState('XV Años')
+  const [customCategory, setCustomCategory] = useState('')
+
+  // Estado para alertas y confirmaciones personalizadas
+  const [notification, setNotification] = useState(null) // { type: 'alert' | 'confirm', message: '', onConfirm: () => void }
+
+  const showCustomAlert = (msg) => {
+    setNotification({
+      type: 'alert',
+      message: msg,
+    })
+  }
+
+  const showCustomConfirm = (msg, onConfirm) => {
+    setNotification({
+      type: 'confirm',
+      message: msg,
+      onConfirm,
+    })
+  }
+
   // Manejar el cambio de opción del select de etiqueta
   const handleTagOptionChange = (val) => {
     setTagOption(val)
@@ -87,6 +110,8 @@ export default function AdminPortfolio() {
       custom_tag: '',
     })
     setTagOption('')
+    setCategoryOption('XV Años')
+    setCustomCategory('')
     setCoverImage(null)
     setGalleryImages([])
     setIsModalOpen(true)
@@ -105,6 +130,15 @@ export default function AdminPortfolio() {
     // Calcular qué opción preseleccionada mostrar en el dropdown
     const isPreset = presetTags.includes(project.custom_tag)
     setTagOption(project.custom_tag ? (isPreset ? project.custom_tag : 'Otro') : '')
+
+    // Calcular qué categoría preseleccionada mostrar
+    if (defaultCategories.includes(project.category)) {
+      setCategoryOption(project.category)
+      setCustomCategory('')
+    } else {
+      setCategoryOption('Otro')
+      setCustomCategory(project.category)
+    }
     
     // Cargar imagen de portada existente
     setCoverImage({
@@ -201,6 +235,23 @@ export default function AdminPortfolio() {
 
   // Lógica común para subir la portada
   const uploadCoverFile = async (file) => {
+    // Validar formato de archivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+    const fileType = file.type || ''
+    const isAllowedType = allowedTypes.includes(fileType) || /\.(jpe?g|png|webp)$/i.test(file.name)
+    
+    if (!isAllowedType) {
+      showCustomAlert('Formato no permitido. Solo se admiten imágenes en formato JPG, JPEG, PNG o WEBP.')
+      return
+    }
+
+    // Validar tamaño máximo (10 MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      showCustomAlert('La imagen es demasiado grande. El límite de tamaño es de 10 MB.')
+      return
+    }
+
     const url = URL.createObjectURL(file)
     const newCover = {
       file,
@@ -215,19 +266,19 @@ export default function AdminPortfolio() {
         setCoverImage((prev) => (prev ? { ...prev, progress } : null))
       })
       setCoverImage((prev) =>
-        prev
-          ? {
-              ...prev,
-              url: res.url,
-              publicId: res.public_id,
-              progress: 100,
-              isSimulated: res.isSimulated || false,
-            }
-          : null
+          prev
+              ? {
+                ...prev,
+                url: res.url,
+                publicId: res.public_id,
+                progress: 100,
+                isSimulated: res.isSimulated || false,
+              }
+              : null
       )
     } catch (err) {
       setCoverImage((prev) =>
-        prev ? { ...prev, error: 'Fallo al subir la imagen', progress: 0 } : null
+          prev ? { ...prev, error: 'Fallo al subir la imagen', progress: 0 } : null
       )
     }
   }
@@ -255,9 +306,31 @@ export default function AdminPortfolio() {
   const uploadGalleryFiles = (files) => {
     if (files.length === 0) return
 
+    // Validar formatos y tamaños antes de iniciar la carga
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    const validFiles = []
+
+    for (const file of files) {
+      const fileType = file.type || ''
+      const isAllowedType = allowedTypes.includes(fileType) || /\.(jpe?g|png|webp)$/i.test(file.name)
+      
+      if (!isAllowedType) {
+        showCustomAlert(`El archivo "${file.name}" no está permitido. Solo se admiten imágenes JPG, JPEG, PNG o WEBP.`)
+        return
+      }
+      if (file.size > maxSize) {
+        showCustomAlert(`La imagen "${file.name}" supera el límite de tamaño permitido (10 MB).`)
+        return
+      }
+      validFiles.push(file)
+    }
+
+    if (validFiles.length === 0) return
+
     // Agregar imágenes locales al estado con progreso 0
     // Usamos prefijo aleatorio + timestamp para evitar colisiones en subidas en lote
-    const newImages = files.map((file, idx) => {
+    const newImages = validFiles.map((file, idx) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${idx}`
       return {
         id,
@@ -355,13 +428,13 @@ export default function AdminPortfolio() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!coverImage || coverImage.progress < 100) {
-      alert('Por favor carga una imagen de portada válida.')
+      showCustomAlert('Por favor carga una imagen de portada válida.')
       return
     }
 
     const unfinishedGallery = galleryImages.some((img) => img.progress < 100)
     if (unfinishedGallery) {
-      alert('Espera a que todas las imágenes de la galería terminen de cargarse.')
+      showCustomAlert('Espera a que todas las imágenes de la galería terminen de cargarse.')
       return
     }
 
@@ -369,7 +442,7 @@ export default function AdminPortfolio() {
     // para evitar fallas de restricción de clave primaria nula en la base de datos de Supabase.
     const hasInvalidImages = galleryImages.some((img) => !img.publicId && !img.public_id)
     if (hasInvalidImages) {
-      alert('Algunas imágenes de la galería no se cargaron correctamente en Cloudinary. Por favor, elimínalas y vuelve a subirlas.')
+      showCustomAlert('Algunas imágenes de la galería no se cargaron correctamente en Cloudinary. Por favor, elimínalas y vuelve a subirlas.')
       return
     }
 
@@ -448,23 +521,26 @@ export default function AdminPortfolio() {
       setIsModalOpen(false)
       setEditingProject(null)
     } catch (err) {
-      alert('Error al guardar el proyecto: ' + err.message)
+      showCustomAlert('Error al guardar el proyecto: ' + err.message)
     } finally {
       setSaving(false)
     }
   }
 
   // Eliminar proyecto
-  const handleDeleteProject = async (id) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este proyecto y todas sus imágenes?')) return
-
-    try {
-      const { error } = await supabase.from('projects').delete().eq('id', id)
-      if (error) throw error
-      fetchProjects()
-    } catch (err) {
-      alert('Error al eliminar proyecto: ' + err.message)
-    }
+  const handleDeleteProject = (id) => {
+    showCustomConfirm(
+      '¿Estás seguro de que deseas eliminar este proyecto y todas sus imágenes?',
+      async () => {
+        try {
+          const { error } = await supabase.from('projects').delete().eq('id', id)
+          if (error) throw error
+          fetchProjects()
+        } catch (err) {
+          showCustomAlert('Error al eliminar proyecto: ' + err.message)
+        }
+      }
+    )
   }
 
   // Modificar orden general de los proyectos del portafolio (para la landing page)
@@ -491,7 +567,7 @@ export default function AdminPortfolio() {
       if (err1 || err2) throw new Error('Error al guardar el orden')
       fetchProjects()
     } catch (err) {
-      alert('No se pudo reordenar: ' + err.message)
+      showCustomAlert('No se pudo reordenar: ' + err.message)
     }
   }
 
@@ -507,7 +583,7 @@ export default function AdminPortfolio() {
       if (error) throw error
       fetchProjects()
     } catch (err) {
-      alert('Error al actualizar estado: ' + err.message)
+      showCustomAlert('Error al actualizar estado: ' + err.message)
     }
   }
 
@@ -685,16 +761,44 @@ export default function AdminPortfolio() {
                     Categoría
                   </label>
                   <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    value={categoryOption}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setCategoryOption(val)
+                      if (val !== 'Otro') {
+                        setFormData((prev) => ({ ...prev, category: val }))
+                      } else {
+                        setFormData((prev) => ({ ...prev, category: customCategory }))
+                      }
+                    }}
                     className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 text-xs text-white-soft outline-none transition-colors duration-300 cursor-pointer"
                   >
-                    <option value="XV Años">XV Años</option>
-                    <option value="Novia">Novia</option>
-                    <option value="Graduación">Graduación</option>
-                    <option value="Personalizados">Personalizados</option>
+                    {[...new Set([...defaultCategories, ...projects.map(p => p.category).filter(Boolean)])].map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="Otro">Otro (Escribir nueva categoría...)</option>
                   </select>
                 </div>
+
+                {categoryOption === 'Otro' && (
+                  <div className="animate-fade-in sm:col-span-2">
+                    <label className="block text-[9px] text-gold uppercase tracking-widest mb-1.5 font-semibold">
+                      Escribe la nueva categoría
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customCategory}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setCustomCategory(val)
+                        setFormData((prev) => ({ ...prev, category: val }))
+                      }}
+                      placeholder="Ej. Colección de Verano, Accesorios..."
+                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 text-xs text-white-soft placeholder-nude/25 outline-none transition-colors duration-300"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Descripción */}
@@ -931,6 +1035,56 @@ export default function AdminPortfolio() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert/Confirm Notification Modal */}
+      {notification && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div onClick={() => setNotification(null)} className="absolute inset-0 bg-black-deep/80 backdrop-blur-sm animate-fade-in" />
+          <div className="relative w-full max-w-md bg-charcoal border border-gold/30 p-6 md:p-8 shadow-2xl z-10 text-center rounded-none animate-fade-in">
+            {/* Elegant Logo / Icon Accent */}
+            <div className="w-12 h-12 border border-gold/30 flex items-center justify-center mx-auto mb-4 text-gold select-none">
+              <span className="font-playfair text-xl italic font-semibold">T</span>
+            </div>
+            
+            <h3 className="font-playfair text-lg text-white-soft mb-3 font-light">
+              {notification.type === 'confirm' ? 'Confirmar Acción' : 'Mensaje del Atelier'}
+            </h3>
+            
+            <p className="font-poppins text-xs text-nude/70 leading-relaxed mb-6">
+              {notification.message}
+            </p>
+            
+            <div className="flex gap-3 justify-center">
+              {notification.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={() => {
+                      notification.onConfirm()
+                      setNotification(null)
+                    }}
+                    className="btn-primary py-2 px-5 text-xs font-semibold uppercase tracking-wider cursor-pointer"
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    onClick={() => setNotification(null)}
+                    className="btn-outline py-2 px-5 text-xs font-semibold uppercase tracking-wider cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setNotification(null)}
+                  className="btn-primary py-2 px-6 text-xs font-semibold uppercase tracking-wider cursor-pointer"
+                >
+                  Entendido
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

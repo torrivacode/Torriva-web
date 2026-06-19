@@ -4,10 +4,6 @@ import { supabase } from '../lib/supabaseClient'
 import { LuChevronLeft, LuChevronRight, LuX } from 'react-icons/lu'
 import { WHATSAPP_NUMBER } from '../lib/constants'
 
-const categories = ['Todos', 'XV Años', 'Novia', 'Graduación', 'Personalizados']
-
-
-
 const ITEMS_PER_PAGE = 6
 
 export default function Portfolio() {
@@ -18,6 +14,9 @@ export default function Portfolio() {
   // Proyectos dinámicos desde Supabase
   const [dbProjects, setDbProjects] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Calcular las categorías dinámicamente
+  const categories = ['Todos', ...new Set(dbProjects.map((p) => p.category).filter(Boolean))]
 
   // Estado para la paginación
   const [currentPage, setCurrentPage] = useState(1)

@@ -26,7 +26,7 @@ export default function AdminLayout() {
           .select('*')
           .eq('id', session.user.id)
           .single()
-        setAdminProfile(data)
+        setAdminProfile(data ? { ...data, email: session.user.email } : { nombre: 'Administrador', email: session.user.email })
       }
     }
     fetchAdminProfile()
@@ -36,6 +36,39 @@ export default function AdminLayout() {
     await supabase.auth.signOut()
     navigate('/admin/login')
   }
+
+  // Auto-logout por inactividad de 5 minutos
+  useEffect(() => {
+    let timeoutId
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      
+      // 5 minutos = 300,000 milisegundos
+      timeoutId = setTimeout(() => {
+        handleLogout()
+      }, 300000)
+    }
+
+    // Eventos del DOM que indican interacción del usuario
+    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart', 'click']
+
+    // Registrar los escuchas de eventos
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetTimer)
+    })
+
+    // Iniciar temporizador
+    resetTimer()
+
+    // Limpieza al desmontar
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetTimer)
+      })
+    }
+  }, [])
 
   const navItems = [
     {

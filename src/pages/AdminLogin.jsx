@@ -5,15 +5,24 @@ import { supabase } from '../lib/supabaseClient'
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [view, setView] = useState('login') // 'login', 'recovery'
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [view, setView] = useState('login') // 'login', 'recovery', 'update-password'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Si ya hay una sesión activa de administrador, redirigir directo al dashboard
+    // Si ya hay una sesión activa de administrador, redirigir directo al dashboard,
+    // salvo que estemos en un flujo de recuperación de contraseña.
     const checkSession = async () => {
+      const isRecoveryFlow = window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')
+      
+      if (isRecoveryFlow) {
+        setView('update-password')
+        return
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         // Validar si es admin
@@ -30,6 +39,18 @@ export default function AdminLogin() {
     }
     checkSession()
   }, [navigate])
+
+  useEffect(() => {
+    // Escuchar el evento de PASSWORD_RECOVERY enviado por Supabase Auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setView('update-password')
+      }
+    })
+    return () => {
+      subscription?.unsubscribe()
+    }
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -89,6 +110,37 @@ export default function AdminLogin() {
       setMessage('Se ha enviado un correo con instrucciones para restablecer tu contraseña.')
     } catch (err) {
       setError(err.message || 'Error al solicitar la recuperación.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault()
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
+
+      setMessage('Tu contraseña ha sido restablecida con éxito. Redirigiendo al dashboard...')
+      setTimeout(() => {
+        navigate('/admin/dashboard')
+      }, 2000)
+    } catch (err) {
+      setError(err.message || 'Error al actualizar la contraseña.')
     } finally {
       setLoading(false)
     }
@@ -226,6 +278,50 @@ export default function AdminLogin() {
                 Volver al Login
               </button>
             </div>
+          </form>
+        )}
+
+        {view === 'update-password' && (
+          <form onSubmit={handleUpdatePassword} className="space-y-5">
+            <div>
+              <label className="block text-[10px] text-nude/50 uppercase tracking-widest mb-1.5 font-medium">
+                Nueva Contraseña
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-3 text-sm text-white-soft placeholder-nude/25 outline-none transition-colors duration-300"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] text-nude/50 uppercase tracking-widest mb-1.5 font-medium">
+                Confirmar Nueva Contraseña
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repite la contraseña"
+                className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-3 text-sm text-white-soft placeholder-nude/25 outline-none transition-colors duration-300"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full justify-center py-3.5 mt-2 transition-all duration-300 text-xs tracking-[0.2em]"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-black-deep border-t-transparent rounded-full animate-spin" />
+              ) : (
+                'Restablecer Contraseña'
+              )}
+            </button>
           </form>
         )}
       </div>

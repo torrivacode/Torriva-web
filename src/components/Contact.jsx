@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, useInView } from 'framer-motion'
 import { FaWhatsapp, FaInstagram, FaFacebook } from 'react-icons/fa'
 import {
   LuPhone,
   LuClock,
   LuMapPin,
   LuMessageCircle,
-  LuX,
   LuExternalLink,
 } from 'react-icons/lu'
 import { supabase } from '../lib/supabaseClient'
@@ -15,10 +14,6 @@ import { WHATSAPP_NUMBER, WHATSAPP_NUMBER_FORMATTED, PHONE_NUMBER_VISIBLE } from
 export default function Contact() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-80px' })
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', service: '', message: '' })
-  const [submitted, setSubmitted] = useState(false)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
   const [horarios, setHorarios] = useState([])
 
   useEffect(() => {
@@ -114,83 +109,6 @@ export default function Contact() {
     })
   }
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    try {
-      const nameParts = formData.name.trim().split(' ')
-      const nombre = nameParts[0] || ''
-      const apellido = nameParts.slice(1).join(' ') || 'S/A'
-      
-      let clienteId = null
-      
-      // Buscar si el cliente ya existe
-      const { data: existingClient, error: searchError } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('email', formData.email.trim())
-        .maybeSingle()
-
-      if (existingClient) {
-        clienteId = existingClient.id
-      } else {
-        const { data: newClient, error: clientErr } = await supabase
-          .from('clientes')
-          .insert({
-            nombre: nombre,
-            apellido: apellido,
-            email: formData.email.trim(),
-            telefono: formData.phone.trim(),
-          })
-          .select()
-          .single()
-
-        if (clientErr) throw clientErr
-        clienteId = newClient.id
-      }
-
-      // Fecha y hora actual
-      const today = new Date().toISOString().split('T')[0]
-      const timeNow = new Date().toTimeString().split(' ')[0]
-
-      // Crear cita en estado pendiente
-      const { error: citaErr } = await supabase
-        .from('citas')
-        .insert({
-          cliente_id: clienteId,
-          fecha: today,
-          hora: timeNow,
-          servicio: formData.service,
-          notas: formData.message || 'Solicitud de cotización rápida desde sitio web.',
-          estado: 'pendiente',
-        })
-
-      if (citaErr) throw citaErr
-
-      // Registrar actividad
-      await supabase
-        .from('actividad')
-        .insert({
-          tipo: 'citas',
-          descripcion: `Nueva cotización en línea registrada para ${formData.name} (${formData.service})`,
-          usuario: 'Sitio Web Público',
-        })
-    } catch (err) {
-      console.error('Error al registrar cita en Supabase:', err)
-    }
-
-    const msg = `Hola, mi nombre es *${formData.name}*.\n📧 Correo: ${formData.email}\n📞 Teléfono: ${formData.phone}\n💼 Servicio: ${formData.service}\n\n${formData.message}`
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank')
-    setSubmitted(true)
-    setTimeout(() => {
-      setSubmitted(false)
-      setIsModalOpen(false)
-    }, 3000)
-  }
 
   return (
     <section id="contacto" className="section-padding bg-charcoal relative overflow-hidden">
@@ -279,6 +197,8 @@ export default function Contact() {
                     </div>
                     <span className="ml-auto text-nude/40 group-hover:translate-x-1 transition-transform duration-300">→</span>
                   </a>
+
+
                 </div>
               </div>
 
@@ -295,21 +215,30 @@ export default function Contact() {
                 </div>
                 
                 <div className="grid sm:grid-cols-2 gap-4 mt-6">
-                  {getFormattedHorarios(horarios).map((text, idx) => {
-                    const parts = text.split(':')
-                    const days = parts[0]
-                    const time = parts.slice(1).join(':').trim()
-                    
-                    return (
-                      <div 
-                        key={idx} 
-                        className="flex justify-between items-center p-4 bg-black-deep/20 border border-white/5 hover:border-gold/20 rounded transition-colors duration-200"
-                      >
-                        <span className="font-poppins text-sm font-semibold text-white-soft">{days}</span>
-                        <span className="font-poppins text-xs text-nude/60">{time}</span>
-                      </div>
-                    )
-                  })}
+                  {horarios.filter(h => h.activo).length === 0 ? (
+                    <div className="col-span-2 p-5 bg-black-deep/20 border border-dashed border-gold/20 rounded text-center">
+                      <p className="font-poppins text-sm font-semibold text-white-soft">Atención bajo previa cita</p>
+                      <p className="font-poppins text-xs text-nude/40 mt-1">
+                        Escríbenos por WhatsApp o llámanos para consultar disponibilidad y agendar tu visita.
+                      </p>
+                    </div>
+                  ) : (
+                    getFormattedHorarios(horarios).map((text, idx) => {
+                      const parts = text.split(':')
+                      const days = parts[0]
+                      const time = parts.slice(1).join(':').trim()
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className="flex justify-between items-center p-4 bg-black-deep/20 border border-white/5 hover:border-gold/20 rounded transition-colors duration-200"
+                        >
+                          <span className="font-poppins text-sm font-semibold text-white-soft">{days}</span>
+                          <span className="font-poppins text-xs text-nude/60">{time}</span>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -329,7 +258,7 @@ export default function Contact() {
                   <FaInstagram className="text-base" />
                 </a>
                 <a
-                  href="https://facebook.com"
+                  href="https://www.facebook.com/people/Torriva/61586972301870/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 border border-white/10 rounded-sm flex items-center justify-center text-nude/50 hover:border-gold hover:text-gold transition-all duration-300"
@@ -403,155 +332,7 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* Pop-up modal for Requesting Quote */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            {/* Backdrop filter overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black-deep/80 backdrop-blur-sm"
-            />
 
-            {/* Modal Box Container */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.93, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 15 }}
-              transition={{ type: 'spring', duration: 0.45 }}
-              className="relative w-full max-w-lg bg-charcoal border border-gold/30 p-8 shadow-2xl rounded-lg z-10"
-            >
-              {/* Close Button X */}
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="absolute top-4 right-4 text-nude/40 hover:text-gold text-2xl transition-colors duration-300"
-                aria-label="Cerrar modal"
-              >
-                <LuX />
-              </button>
-
-              <h3 className="font-playfair text-2xl text-white-soft mb-1">
-                Solicita una cotización
-              </h3>
-              <p className="font-poppins text-xs text-nude/50 mb-6">
-                Cuéntanos sobre tu visión y nos pondremos en contacto contigo para agendar una cita en el atelier.
-              </p>
-
-              {submitted ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-10"
-                >
-                  <div className="text-4xl mb-4">✨</div>
-                  <p className="font-playfair text-xl text-gold font-semibold">¡Mensaje preparado!</p>
-                  <p className="font-poppins text-sm text-nude/60 mt-1">
-                    Redirigiendo a WhatsApp...
-                  </p>
-                </motion.div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label htmlFor="contact-input-name" className="block font-poppins text-[10px] text-nude/50 uppercase tracking-widest mb-1.5">
-                      Nombre completo
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      placeholder="Tu nombre"
-                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 font-poppins text-sm text-white-soft placeholder-nude/30 outline-none transition-colors duration-300"
-                      id="contact-input-name"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="contact-input-email" className="block font-poppins text-[10px] text-nude/50 uppercase tracking-widest mb-1.5">
-                      Correo electrónico
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      placeholder="tuemail@correo.com"
-                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 font-poppins text-sm text-white-soft placeholder-nude/30 outline-none transition-colors duration-300"
-                      id="contact-input-email"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="contact-input-phone" className="block font-poppins text-[10px] text-nude/50 uppercase tracking-widest mb-1.5">
-                      Teléfono / WhatsApp
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="+52 961 000 0000"
-                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 font-poppins text-sm text-white-soft placeholder-nude/30 outline-none transition-colors duration-300"
-                      id="contact-input-phone"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="contact-select-service" className="block font-poppins text-[10px] text-nude/50 uppercase tracking-widest mb-1.5">
-                      Servicio de interés
-                    </label>
-                    <select
-                      name="service"
-                      value={formData.service}
-                      onChange={handleChange}
-                      required
-                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 font-poppins text-sm text-white-soft outline-none transition-colors duration-300 cursor-pointer"
-                      id="contact-select-service"
-                    >
-                      <option value="" className="bg-black-deep">Selecciona un servicio</option>
-                      <option value="Vestido de XV años" className="bg-black-deep">Vestido de XV años</option>
-                      <option value="Vestido de novia" className="bg-black-deep">Vestido de novia</option>
-                      <option value="Vestido de graduación" className="bg-black-deep">Vestido de graduación</option>
-                      <option value="Prenda a medida" className="bg-black-deep">Prenda a medida</option>
-                      <option value="Ajustes y reparaciones" className="bg-black-deep">Ajustes y reparaciones</option>
-                      <option value="Otro" className="bg-black-deep">Otro</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="contact-textarea-message" className="block font-poppins text-[10px] text-nude/50 uppercase tracking-widest mb-1.5">
-                      Mensaje
-                    </label>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      rows={3}
-                      placeholder="Cuéntanos sobre tu idea o proyecto..."
-                      className="w-full bg-black-deep border border-white/10 focus:border-gold px-4 py-2.5 font-poppins text-sm text-white-soft placeholder-nude/30 outline-none resize-none transition-colors duration-300"
-                      id="contact-textarea-message"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="btn-primary w-full justify-center mt-2"
-                    id="contact-btn-submit"
-                  >
-                    <FaWhatsapp className="text-lg" />
-                    Enviar por WhatsApp
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </section>
   )
 }

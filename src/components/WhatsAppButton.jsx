@@ -39,7 +39,7 @@ export default function WhatsAppButton() {
               >
                 <p className="font-poppins text-xs text-white-soft font-semibold">¡Hola! 👋</p>
                 <p className="font-poppins text-xs text-nude/50">
-                  ¿Lista para tu prenda soñada?
+                  ¿Creamos tu prenda soñada?
                   <br />
                   Escríbenos por WhatsApp.
                 </p>
