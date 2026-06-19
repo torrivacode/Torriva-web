@@ -70,7 +70,9 @@ export default function Portfolio() {
           setDbProjects([])
         }
       } catch (err) {
-        console.error('Error al cargar portafolio público:', err)
+        if (import.meta.env.DEV) {
+          console.error('Error al cargar portafolio público:', err)
+        }
       } finally {
         setLoading(false)
       }

@@ -23,7 +23,9 @@ export default function AdminHorarios() {
       if (err) throw err
       setSchedules(data || [])
     } catch (err) {
-      console.error('Error fetching schedules:', err)
+      if (import.meta.env.DEV) {
+        console.error('Error fetching schedules:', err)
+      }
     } finally {
       setLoading(false)
     }
@@ -117,7 +119,9 @@ export default function AdminHorarios() {
       setSchedules(editingSchedules)
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving schedules:', err)
+      if (import.meta.env.DEV) {
+        console.error('Error saving schedules:', err)
+      }
       setError('Ocurrió un error al guardar los horarios: ' + err.message)
     } finally {
       setSaving(false)

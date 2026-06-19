@@ -26,7 +26,9 @@ export default function AdminDashboard() {
         if (error) throw error
         setRecentProjects(data || [])
       } catch (err) {
-        console.error('Error fetching recent projects:', err)
+        if (import.meta.env.DEV) {
+          console.error('Error fetching recent projects:', err)
+        }
       } finally {
         setLoading(false)
       }

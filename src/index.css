@@ -88,11 +88,6 @@ body {
   .card-dark {
     @apply bg-charcoal border border-white/5 hover:border-gold/30 transition-all duration-500;
   }
-
-  /* ===== Image overlay ===== */
-  .img-overlay {
-    @apply absolute inset-0 bg-gradient-to-t from-black-deep via-black-deep/40 to-transparent;
-  }
 }
 
 /* ===== Custom Animations ===== */
@@ -114,5 +109,3 @@ body {
 .pulse-gold {
   animation: pulse-gold 2s ease-in-out infinite;
 }
-
-

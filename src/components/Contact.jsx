@@ -29,7 +29,9 @@ export default function Contact() {
           setHorarios(data)
         }
       } catch (err) {
-        console.error('Error fetching schedules in public page:', err)
+        if (import.meta.env.DEV) {
+          console.error('Error fetching schedules in public page:', err)
+        }
       }
     }
 

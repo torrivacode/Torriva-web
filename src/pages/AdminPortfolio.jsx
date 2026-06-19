@@ -11,7 +11,6 @@ import {
   LuArrowUp,
   LuArrowDown,
   LuGripVertical,
-  LuRefreshCw,
 } from 'react-icons/lu'
 import { FaEdit } from 'react-icons/fa'
 
@@ -85,7 +84,9 @@ export default function AdminPortfolio() {
       if (error) throw error
       setProjects(data || [])
     } catch (err) {
-      console.error('Error fetching projects:', err)
+      if (import.meta.env.DEV) {
+        console.error('Error fetching projects:', err)
+      }
     } finally {
       setLoading(false)
     }

@@ -30,7 +30,6 @@ export default {
       animation: {
         'fade-up': 'fadeUp 0.8s ease forwards',
         'fade-in': 'fadeIn 1s ease forwards',
-        'shimmer': 'shimmer 2.5s linear infinite',
       },
       keyframes: {
         fadeUp: {
@@ -40,10 +39,6 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
-        },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% center' },
-          '100%': { backgroundPosition: '200% center' },
         },
       },
     },

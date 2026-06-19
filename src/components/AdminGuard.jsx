@@ -44,7 +44,9 @@ export default function AdminGuard() {
           .single()
 
         if (adminError) {
-          console.error('Error fetching admin details:', adminError)
+          if (import.meta.env.DEV) {
+            console.error('Error fetching admin details:', adminError)
+          }
           if (isMounted) {
             setAuthorized(false)
             setErrorMessage('No se pudieron verificar tus permisos en el atelier.')
@@ -62,7 +64,9 @@ export default function AdminGuard() {
           }
         }
       } catch (err) {
-        console.error('Error in AdminGuard check:', err)
+        if (import.meta.env.DEV) {
+          console.error('Error in AdminGuard check:', err)
+        }
         if (isMounted) {
           setAuthorized(false)
           setErrorMessage('Ocurrió un error inesperado al validar tu sesión.')
@@ -126,8 +130,6 @@ export default function AdminGuard() {
     }
 
     // Como useEffect corre asíncronamente, podemos manejarlo renderizando una UI 403 premium si hay un email logueado pero no es admin, o si no hay sesión redirigir.
-    const currentUser = supabase.auth.user ? supabase.auth.user() : null; // supabase v2 usa auth.getSession()
-    
     // Si tenemos error message de falta de rol, mostramos la vista 403 personalizada
     if (errorMessage) {
       return (
